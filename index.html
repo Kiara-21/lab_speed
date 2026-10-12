@@ -34,23 +34,21 @@ td.big{font-weight:700;color:var(--ok)}
 <p class="sub">Вимірювання середньої швидкості руху тіла · віртуальний тренажер</p>
 
 <div class="card"><h2>Хід роботи</h2><ol>
-<li>Виставте шлях <b>l</b> (лінійкою) і висоту підйому жолоба.</li>
+<li>Виставте шлях <b>s</b> (лінійкою) і висоту підйому жолоба.</li>
 <li>Натисніть «Відпустити кульку» — запуститься секундомір.</li>
 <li>Щойно кулька вдарилась у циліндр — натисніть <b>СТОП</b>.</li>
 <li>Повторіть дослід тричі, потім опрацюйте результати.</li></ol></div>
 
 <div class="card">
 <canvas id="cv"></canvas>
-<div class="row"><label for="l">Шлях l (лінійка)</label><input type="range" id="l" min="1" max="1.5" step="0.05" value="1.2"><b id="lv"></b></div>
+<div class="row"><label for="l">Шлях s (лінійка)</label><input type="range" id="l" min="1" max="1.5" step="0.05" value="1.2"><b id="lv"></b></div>
 <div class="row"><label for="h">Висота підйому</label><input type="range" id="h" min="5" max="15" step="1" value="8"><b id="hv"></b></div>
 <div class="sw" id="sw">0,00</div><div class="swl">секундомір, с</div>
 <button id="go"></button>
 <button class="ghost" id="rs">Почати все спочатку</button>
-<label class="chk"><input type="checkbox" id="auto"><span>Автоматичний секундомір (зупиняється сам, з невеликою випадковою похибкою — якщо складно натиснути вчасно)</span></label>
 </div>
 
-<div class="card"><h2>Таблиця результатів</h2><div class="tw"><table id="tb"></table></div>
-<div id="res"></div></div>
+<div class="card"><h2>Результати</h2><div id="res"></div></div>
 </main>
 <script>
 const $=id=>document.getElementById(id),g=9.81,fm=(v,n=2)=>v.toFixed(n).replace('.',',');
@@ -74,7 +72,7 @@ function draw(p){
  x.fillStyle=mu;x.textAlign='center';x.fillText('позначка',r+16,-18);
  x.strokeStyle=mu;x.lineWidth=1;x.beginPath();x.moveTo(0,-44);x.lineTo(Lp,-44);x.stroke();
  [0,Lp].forEach(v=>{x.beginPath();x.moveTo(v,-49);x.lineTo(v,-39);x.stroke()});
- x.fillStyle=tx;x.fillText('l = '+fm(q.l)+' м',Lp/2,-50);
+ x.fillStyle=tx;x.fillText('s = '+fm(q.l)+' м',Lp/2,-50);
  const s=r+p*(Lp-12-2*r);x.translate(s,-3-r);x.rotate(s/r);
  x.fillStyle=css('--ball');x.beginPath();x.arc(0,0,r,0,7);x.fill();
  x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.moveTo(0,0);x.lineTo(r-2,0);x.stroke();
@@ -85,27 +83,18 @@ function ui(){
  b.className=state==='run'?'stop':'';
  b.textContent=state==='run'?'⏹ СТОП':done?'Усі 3 досліди виконано ✔':state==='done'?'↺ Повернути кульку на позначку':'▶ Відпустити кульку (старт)';
  b.disabled=done&&state!=='run';b.style.opacity=b.disabled?.5:1;
- const lock=trials.length>0||state==='run';$('l').disabled=$('h').disabled=$('auto').disabled=lock;
+ const lock=trials.length>0||state==='run';$('l').disabled=$('h').disabled=lock;
  $('lv').textContent=fm(+$('l').value)+' м';$('hv').textContent=$('h').value+' см';
  table();
 }
 function table(){
- let h='<tr><th>№ досліду</th><th>Шлях l, м</th><th>Час руху кульки t, с</th><th>Середній час tсер, с</th><th>Середня швидкість vсер, м/с</th></tr>';
  const done=trials.length===3,ts=trials.map(t=>t.t),tm=ts.reduce((a,b)=>a+b,0)/3,l=trials[0]&&trials[0].l,v=done?l/tm:0;
- for(let i=0;i<3;i++){const t=trials[i];
-  h+=`<tr><td>${i+1}</td><td>${t?fm(t.l):''}</td><td>${t?fm(t.t):''}</td>`+
-   (i===0?`<td rowspan="3" class="big">${done?fm(tm):''}</td><td rowspan="3" class="big">${done?fm(v):''}</td>`:'')+'</tr>';}
- $('tb').innerHTML=h;
- $('res').innerHTML=done?`<div class="calc"><b>Опрацювання результатів</b>
- <p>tсер = (t₁ + t₂ + t₃) / 3 = (${ts.map(t=>fm(t)).join(' + ')}) / 3 = <b>${fm(tm)} с</b></p>
- <p>vсер = l / tсер = ${fm(l)} / ${fm(tm)} = <b>${fm(v)} м/с</b></p>
- <p class="hint">Висновок (приклад): я дослідив(-ла) нерівномірний рух кульки по жолобу й виміряв її середню швидкість. Вона дорівнює ≈ ${fm(v)} м/с. Час у дослідах трохи відрізнявся через похибку вимірювання секундоміром (реакція людини).</p></div>`:
- `<p class="hint">Після трьох дослідів тут з’являться середній час і середня швидкість.</p>`;
+ const list=trials.length?'<p>'+trials.map((t,i)=>`Дослід ${i+1}: s = ${fm(t.l)} м, t = <b>${fm(t.t)} с</b>`).join('<br>')+'</p>':'';
+ $('res').innerHTML=list||'<p class="hint">Тут з’являтимуться результати вимірювань. Запишіть їх у зошит і виконайте розрахунки самостійно.</p>';
 }
 function loop(){
  const el=(performance.now()-t0)/1000,q=P();
  draw(Math.min(1,(el/q.T)**2));$('sw').textContent=fm(el);
- if($('auto').checked&&el>=autoT)return finish(autoT);
  if(el>25)return finish(el);
  raf=requestAnimationFrame(loop);
 }
@@ -119,7 +108,7 @@ $('go').onclick=()=>{
  if(state==='run'){return finish((performance.now()-t0)/1000)}
  if(trials.length>=3)return;
  if(state==='done'){state='idle';$('sw').textContent='0,00';draw(0);ui();return}
- state='run';autoT=P().T+gauss()*.05;t0=performance.now();ui();raf=requestAnimationFrame(loop);
+ state='run';t0=performance.now();ui();raf=requestAnimationFrame(loop);
 };
 $('rs').onclick=()=>{cancelAnimationFrame(raf);trials=[];state='idle';$('sw').textContent='0,00';draw(0);ui()};
 ['l','h'].forEach(i=>$(i).oninput=()=>{draw(0);ui()});
