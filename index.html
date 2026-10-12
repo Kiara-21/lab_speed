@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Лабораторна робота №2 — Середня швидкість руху тіла</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--tx:#1b2430;--mu:#5d6b7d;--ac:#2563eb;--ac2:#dc2626;--ok:#15803d;--bd:#dbe1ea;--rail:#8d99ab;--ball:#e11d48;--cyl:#475569;--hi:#eef4ff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151c;--card:#1a212b;--tx:#e8edf4;--mu:#9aa7b8;--ac:#6ea0ff;--ac2:#f87171;--ok:#4ade80;--bd:#2b3543;--rail:#6b7788;--ball:#fb7185;--cyl:#94a3b8;--hi:#1f2a3b}}
+:root[data-theme="dark"]{--bg:#10151c;--card:#1a212b;--tx:#e8edf4;--mu:#9aa7b8;--ac:#6ea0ff;--ac2:#f87171;--ok:#4ade80;--bd:#2b3543;--rail:#6b7788;--ball:#fb7185;--cyl:#94a3b8;--hi:#1f2a3b}
+html{height:auto}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:620px;margin:0 auto;padding:14px}
+h1{font-size:19px;margin:4px 0 2px}.sub{color:var(--mu);font-size:14px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+h2{font-size:15px;margin:0 0 8px}
+ol{margin:0;padding-left:20px;font-size:14.5px}li{margin:3px 0}
+canvas{width:100%;display:block}
+.row{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:14.5px}
+.row label{flex:0 0 118px}.row input{flex:1;accent-color:var(--ac)}.row b{flex:0 0 66px;text-align:right}
+.sw{font:700 44px/1 ui-monospace,Menlo,monospace;text-align:center;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.swl{text-align:center;color:var(--mu);font-size:13px;margin-bottom:10px}
+button{font:inherit;border:0;border-radius:12px;padding:14px;width:100%;font-weight:600;font-size:17px;background:var(--ac);color:#fff;cursor:pointer}
+button.stop{background:var(--ac2);padding:22px;font-size:20px}
+button.ghost{background:transparent;color:var(--mu);border:1px solid var(--bd);font-size:14px;padding:9px;margin-top:8px;font-weight:500}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;color:var(--mu);margin-top:10px}
+.chk input{margin-top:3px;accent-color:var(--ac)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px;text-align:center}
+th,td{border:1px solid var(--bd);padding:7px 5px}th{background:var(--hi);font-weight:600;font-size:12.5px}
+td.big{font-weight:700;color:var(--ok)}
+.calc{font-size:14.5px;background:var(--hi);border-radius:10px;padding:10px 12px;margin-top:10px}
+.calc p{margin:4px 0}.hint{color:var(--mu);font-size:13px}
+</style></head><body><main>
+<h1>Лабораторна робота №2</h1>
+<p class="sub">Вимірювання середньої швидкості руху тіла · віртуальний тренажер</p>
+
+<div class="card"><h2>Хід роботи</h2><ol>
+<li>Виставте шлях <b>l</b> (лінійкою) і висоту підйому жолоба.</li>
+<li>Натисніть «Відпустити кульку» — запуститься секундомір.</li>
+<li>Щойно кулька вдарилась у циліндр — натисніть <b>СТОП</b>.</li>
+<li>Повторіть дослід тричі, потім опрацюйте результати.</li></ol></div>
+
+<div class="card">
+<canvas id="cv"></canvas>
+<div class="row"><label for="l">Шлях l (лінійка)</label><input type="range" id="l" min="1" max="1.5" step="0.05" value="1.2"><b id="lv"></b></div>
+<div class="row"><label for="h">Висота підйому</label><input type="range" id="h" min="5" max="15" step="1" value="8"><b id="hv"></b></div>
+<div class="sw" id="sw">0,00</div><div class="swl">секундомір, с</div>
+<button id="go"></button>
+<button class="ghost" id="rs">Почати все спочатку</button>
+<label class="chk"><input type="checkbox" id="auto"><span>Автоматичний секундомір (зупиняється сам, з невеликою випадковою похибкою — якщо складно натиснути вчасно)</span></label>
+</div>
+
+<div class="card"><h2>Таблиця результатів</h2><div class="tw"><table id="tb"></table></div>
+<div id="res"></div></div>
+</main>
+<script>
+const $=id=>document.getElementById(id),g=9.81,fm=(v,n=2)=>v.toFixed(n).replace('.',',');
+let trials=[],state='idle',t0=0,autoT=0,raf=0,lastT=0;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function P(){const l=+$('l').value,h=+$('h').value/100,a=5/7*g*h/l;return{l,h,a,T:Math.sqrt(2*l/a)}}
+function draw(p){
+ const c=$('cv'),W=c.parentElement.clientWidth-28,d=devicePixelRatio||1,q=P();
+ const al=Math.min(Math.asin(q.h/q.l)*3,.45),ca=Math.cos(al),sa=Math.sin(al),x0=26,y0=62,Lp=(W-2*x0)/ca,r=9;
+ const H=Math.round(y0+Lp*sa+34);
+ c.style.height=H+'px';if(c.width!==Math.round(W*d)||c.height!==Math.round(H*d)){c.width=Math.round(W*d);c.height=Math.round(H*d)}
+ const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);x.clearRect(0,0,W,H);
+ const tx=css('--tx'),mu=css('--mu');x.font='13px system-ui,sans-serif';x.lineCap='round';
+ const yF=y0+Lp*sa+3;x.strokeStyle=mu;x.lineWidth=2;x.beginPath();x.moveTo(4,yF+2);x.lineTo(W-4,yF+2);x.stroke();
+ x.fillStyle=css('--cyl');x.fillRect(x0-5,y0+3,10,yF-y0-3);
+ x.fillStyle=mu;x.textAlign='left';x.fillText('h = '+(q.h*100)+' см',x0+10,(y0+yF)/2+16);
+ x.save();x.translate(x0,y0);x.rotate(al);
+ x.fillStyle=css('--rail');x.fillRect(0,-3,Lp,6);
+ x.fillStyle=css('--cyl');x.fillRect(Lp-12,-25,12,22);
+ x.strokeStyle=tx;x.lineWidth=1.5;x.beginPath();x.moveTo(r,-3);x.lineTo(r,-14);x.stroke();
+ x.fillStyle=mu;x.textAlign='center';x.fillText('позначка',r+16,-18);
+ x.strokeStyle=mu;x.lineWidth=1;x.beginPath();x.moveTo(0,-44);x.lineTo(Lp,-44);x.stroke();
+ [0,Lp].forEach(v=>{x.beginPath();x.moveTo(v,-49);x.lineTo(v,-39);x.stroke()});
+ x.fillStyle=tx;x.fillText('l = '+fm(q.l)+' м',Lp/2,-50);
+ const s=r+p*(Lp-12-2*r);x.translate(s,-3-r);x.rotate(s/r);
+ x.fillStyle=css('--ball');x.beginPath();x.arc(0,0,r,0,7);x.fill();
+ x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.moveTo(0,0);x.lineTo(r-2,0);x.stroke();
+ x.restore();
+}
+function ui(){
+ const b=$('go'),done=trials.length>=3;
+ b.className=state==='run'?'stop':'';
+ b.textContent=state==='run'?'⏹ СТОП':done?'Усі 3 досліди виконано ✔':state==='done'?'↺ Повернути кульку на позначку':'▶ Відпустити кульку (старт)';
+ b.disabled=done&&state!=='run';b.style.opacity=b.disabled?.5:1;
+ const lock=trials.length>0||state==='run';$('l').disabled=$('h').disabled=$('auto').disabled=lock;
+ $('lv').textContent=fm(+$('l').value)+' м';$('hv').textContent=$('h').value+' см';
+ table();
+}
+function table(){
+ let h='<tr><th>№ досліду</th><th>Шлях l, м</th><th>Час руху кульки t, с</th><th>Середній час tсер, с</th><th>Середня швидкість vсер, м/с</th></tr>';
+ const done=trials.length===3,ts=trials.map(t=>t.t),tm=ts.reduce((a,b)=>a+b,0)/3,l=trials[0]&&trials[0].l,v=done?l/tm:0;
+ for(let i=0;i<3;i++){const t=trials[i];
+  h+=`<tr><td>${i+1}</td><td>${t?fm(t.l):''}</td><td>${t?fm(t.t):''}</td>`+
+   (i===0?`<td rowspan="3" class="big">${done?fm(tm):''}</td><td rowspan="3" class="big">${done?fm(v):''}</td>`:'')+'</tr>';}
+ $('tb').innerHTML=h;
+ $('res').innerHTML=done?`<div class="calc"><b>Опрацювання результатів</b>
+ <p>tсер = (t₁ + t₂ + t₃) / 3 = (${ts.map(t=>fm(t)).join(' + ')}) / 3 = <b>${fm(tm)} с</b></p>
+ <p>vсер = l / tсер = ${fm(l)} / ${fm(tm)} = <b>${fm(v)} м/с</b></p>
+ <p class="hint">Висновок (приклад): я дослідив(-ла) нерівномірний рух кульки по жолобу й виміряв її середню швидкість. Вона дорівнює ≈ ${fm(v)} м/с. Час у дослідах трохи відрізнявся через похибку вимірювання секундоміром (реакція людини).</p></div>`:
+ `<p class="hint">Після трьох дослідів тут з’являться середній час і середня швидкість.</p>`;
+}
+function loop(){
+ const el=(performance.now()-t0)/1000,q=P();
+ draw(Math.min(1,(el/q.T)**2));$('sw').textContent=fm(el);
+ if($('auto').checked&&el>=autoT)return finish(autoT);
+ if(el>25)return finish(el);
+ raf=requestAnimationFrame(loop);
+}
+function finish(t){
+ cancelAnimationFrame(raf);t=Math.max(.01,Math.round(t*100)/100);
+ const q=P();trials.push({l:q.l,t});$('sw').textContent=fm(t);state='done';
+ draw(Math.min(1,(t/q.T)**2));ui();
+}
+function gauss(){return Math.sqrt(-2*Math.log(1-Math.random()))*Math.cos(6.283*Math.random())}
+$('go').onclick=()=>{
+ if(state==='run'){return finish((performance.now()-t0)/1000)}
+ if(trials.length>=3)return;
+ if(state==='done'){state='idle';$('sw').textContent='0,00';draw(0);ui();return}
+ state='run';autoT=P().T+gauss()*.05;t0=performance.now();ui();raf=requestAnimationFrame(loop);
+};
+$('rs').onclick=()=>{cancelAnimationFrame(raf);trials=[];state='idle';$('sw').textContent='0,00';draw(0);ui()};
+['l','h'].forEach(i=>$(i).oninput=()=>{draw(0);ui()});
+addEventListener('resize',()=>{if(state!=='run')draw(state==='done'?1:0)});
+draw(0);ui();
+</script></body></html>
